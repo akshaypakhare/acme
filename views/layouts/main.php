@@ -63,7 +63,16 @@ AppAsset::register($this);
             'links' => isset($this->params['breadcrumbs']) ? $this->params['breadcrumbs'] : [],
         ]) ?>
         <?= Alert::widget() ?>
-        <?= $content ?>
+        <?php if(!empty(Yii::$app->session->getFlash('success'))):?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= Yii::$app->session->getFlash('success');?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php endif; ?>
+
+                <?= $content ?>
     </div>
 </div>
 

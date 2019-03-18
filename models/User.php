@@ -3,6 +3,7 @@
 namespace app\models;
 
 use Yii;
+use yii\db\Expression;
 
 /**
  * This is the model class for table "user".
@@ -23,8 +24,12 @@ use Yii;
  * @property PhoneNumber[] $phoneNumbers
  * @property Trip[] $trips
  */
-class User extends \yii\db\ActiveRecord
+class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 {
+    const STATUS_INSERTED = 0;
+    const STATUS_ACTIVE = 1;
+    const STATUS_BLOCKED = 2;
+
     /**
      * {@inheritdoc}
      */
@@ -39,7 +44,7 @@ class User extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['uid', 'username', 'email', 'password', 'updated'], 'required'],
+            [['uid', 'username', 'email', 'password'], 'required'],
             [['status', 'contact_email', 'contact_phone'], 'integer'],
             [['created', 'updated'], 'safe'],
             [['uid', 'password'], 'string', 'max' => 60],
@@ -47,9 +52,36 @@ class User extends \yii\db\ActiveRecord
             [['email'], 'string', 'max' => 255],
             [['uid'], 'unique'],
             [['email'], 'unique'],
+            [['email'], 'email'],
         ];
     }
 
+    public function beforeValidate(){
+        if($this->isNewRecord){
+            $this->setUid();
+        }
+       return parent::beforeValidate();
+    }
+    
+
+    //public function beforeSave($options = array()){
+        public function beforeSave($insert){
+        if($this->isNewRecord){
+            $this->password = Yii::$app->getSecurity()->generatePasswordHash($this->password);
+        }
+        $this->updated = new Expression('NOW()');
+       return parent::beforeSave($insert);
+    }
+
+    private function setUid(){
+        $this->uid = Yii::$app->getSecurity()->generatePasswordHash(date('YmdHis').rand(1, 99999));
+    }
+
+    public function activate(){
+        $this->status = self::STATUS_ACTIVE;
+        $this->setUid();
+        return $this->save();
+    }
     /**
      * {@inheritdoc}
      */
@@ -99,5 +131,21 @@ class User extends \yii\db\ActiveRecord
     public function getTrips()
     {
         return $this->hasMany(Trip::className(), ['user_id' => 'id']);
+    }
+
+    public static function findByEmail($email){
+        return self::findOne(['email'=>$email]);
+    }
+
+    public function validatePassword($password){
+        return Yii::$app->security->validatePassword($password, $this->password);
+    }
+
+    public function getId(){
+        return $this->id;
+    }
+
+    public function getAuthKey(){
+        return $this->authKey;
     }
 }

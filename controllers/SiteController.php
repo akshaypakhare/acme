@@ -9,6 +9,10 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\User;
+use Yii\helpers\Url;
+use app\models\Mailer as AcmeMailer;
+use yii\web\NotFoundHttpException;
 
 class SiteController extends Controller
 {
@@ -80,10 +84,43 @@ class SiteController extends Controller
             return $this->goBack();
         }
 
-        $model->password = '';
+        //$model->password = '';
         return $this->render('login', [
             'model' => $model,
         ]);
+    }
+
+    //action register
+    public function actionRegister()
+    {
+        if (!Yii::$app->user->isGuest) {
+            return $this->goHome();
+        }
+        $newUser = new User();
+         if ($newUser->load(Yii::$app->request->post()) && $newUser->save() && AcmeMailer::send(AcmeMailer::TYPE_REGISTRATION, $newUser)){
+            Yii::$app->session->setFlash('success', 'Successfully registered. Please check email.');
+                return $this->goHome();
+         }
+        return $this->render('register', [
+            'newUser' => $newUser,
+        ]);
+    }
+
+    public function actionActivate($user, $token){
+
+        $userToActivate = User::find()->where(['id' => $user, 'uid' => $token])->one();
+        if(empty($userToActivate)){
+            throw new NotFoundHttpException('User Not Found!');
+        }
+
+        if (!$userToActivate->activate()) {
+            # code...
+            Yii::$app->session->setFlash('error', 'Can not activate');
+            return $this->goHome();
+        }else{
+            Yii::$app->session->setFlash('success', 'Successfully activated');
+        }
+
     }
 
     /**
